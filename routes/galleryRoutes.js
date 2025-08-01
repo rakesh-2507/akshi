@@ -28,27 +28,19 @@ const upload = multer({ storage });
 router.post('/upload-event', upload.array('assets'), async (req, res) => {
   try {
     const { eventType, place, eventDate } = req.body;
-    const files = req.files;
-
-    if (!eventType || !place || !eventDate || !files || files.length === 0) {
-      return res.status(400).json({ error: 'Missing fields or files' });
-    }
-
-    const assetUrls = files.map(file => `/uploads/gallery/${file.filename}`);
+    const assets = req.files.map(file => file.filename);
 
     await pool.query(
-      `INSERT INTO gallery_events (event_type, place, event_date, assets)
-       VALUES ($1, $2, $3, $4)`,
-      [eventType, place, eventDate, assetUrls]
+      'INSERT INTO gallery_events (event_type, place, event_date, assets) VALUES ($1, $2, $3, $4)',
+      [eventType, place, eventDate, assets]
     );
 
-    res.status(201).json({ message: '✅ Event uploaded successfully!' });
+    res.status(201).json({ message: '✅ Event uploaded successfully' });
   } catch (err) {
-    console.error('Upload Event Error:', err);
-    res.status(500).json({ error: '❌ Upload failed' });
+    console.error(err);
+    res.status(500).json({ message: '❌ Server error' });
   }
 });
-
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM gallery_events ORDER BY event_date DESC');
