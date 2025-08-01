@@ -49,14 +49,13 @@ router.post('/upload-event', upload.array('assets'), async (req, res) => {
   }
 });
 
-// ✅ GET: Fetch all gallery events
-router.get('/gallery-events', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM gallery_events ORDER BY event_date DESC');
-    res.status(200).json(result.rows);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching gallery events:', error);
-    res.status(500).json({ error: 'Failed to fetch gallery events' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

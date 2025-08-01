@@ -38,7 +38,7 @@ app.use('/api', bookingRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/apartments', apartmentRoutes);
 app.use('/api/warranty', warrantyRoutes);
-app.use('/api/gallery', galleryRoutes);
+app.use('/api/gallery-events', galleryRoutes); 
 app.use('/api/marketplace', require('./routes/marketplaceRoutes'));
 
 // Root check
