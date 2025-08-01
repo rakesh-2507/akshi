@@ -27,12 +27,12 @@ const upload = multer({ storage });
 // ✅ POST: Upload Event with files
 router.post('/upload-event', upload.array('assets'), async (req, res) => {
   try {
-    const { eventType, place, eventDate } = req.body;
+    const { title, eventType, place, eventDate } = req.body;
     const assets = req.files.map(file => file.filename);
 
     await pool.query(
-      'INSERT INTO gallery_events (event_type, place, event_date, assets) VALUES ($1, $2, $3, $4)',
-      [eventType, place, eventDate, assets]
+      'INSERT INTO gallery_events (title, event_type, place, event_date, assets) VALUES ($1, $2, $3, $4)',
+      [title, eventType, place, eventDate, assets]
     );
 
     res.status(201).json({ message: '✅ Event uploaded successfully' });
