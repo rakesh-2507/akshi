@@ -56,14 +56,19 @@ exports.getLeaderboard = async (req, res) => {
 
   try {
     const topUsers = await pool.query(`
-      SELECT u.id, u.name, u.profile_photo_url, COALESCE(SUM(s.steps), 0) AS total_steps
-      FROM users u
-      LEFT JOIN step_activity s ON u.id = s.user_id
-        AND s.date >= CURRENT_DATE - INTERVAL '6 days'
-      GROUP BY u.id
-      ORDER BY total_steps DESC
-      LIMIT 10
-    `);
+  SELECT 
+    u.id, 
+    u.name, 
+    u.profile_photo_url, 
+    u.flat_number,               -- ✅ Add this line
+    COALESCE(SUM(s.steps), 0) AS total_steps
+  FROM users u
+  LEFT JOIN step_activity s 
+    ON u.id = s.user_id AND s.date >= CURRENT_DATE - INTERVAL '6 days'
+  GROUP BY u.id
+  ORDER BY total_steps DESC
+  LIMIT 10
+`);
 
     // Fetch current user’s rank separately
     let currentUser = null;
@@ -78,11 +83,12 @@ exports.getLeaderboard = async (req, res) => {
 
       const myRank = rankRes.rows.find(row => row.user_id === parseInt(userId));
       if (myRank) {
-        const userRes = await pool.query(`SELECT id, name, profile_photo_url FROM users WHERE id = $1`, [userId]);
+        const userRes = await pool.query(`SELECT id, name, profile_photo_url, flat_number FROM users WHERE id = $1`, [userId]);
         currentUser = {
           id: userRes.rows[0].id,
           name: userRes.rows[0].name,
           profile_photo_url: userRes.rows[0].profile_photo_url,
+          flat_number: userRes.rows[0].flat_number,
           total_steps: myRank.total_steps,
           rank: myRank.rank,
         };

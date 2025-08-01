@@ -21,6 +21,11 @@ const bookingRoutes = require('./routes/bookingRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 const apartmentRoutes = require('./routes/apartmentRoutes');
 const warrantyRoutes = require('./routes/warrantyRoutes');
+const galleryRoutes = require('./routes/galleryRoutes');
+
+app.use('/uploads/gallery', express.static(path.join(__dirname, 'uploads/gallery')));
+app.use('/uploads', express.static('uploads'));
+
 
 // Route mounting
 app.use('/api/auth', authRoutes);
@@ -33,9 +38,7 @@ app.use('/api', bookingRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/apartments', apartmentRoutes);
 app.use('/api/warranty', warrantyRoutes);
-app.use('/uploads', express.static('uploads'));
-app.use('/uploads/gallery', express.static(path.join(__dirname, 'uploads/gallery')));
-app.use('/api/gallery', require('./routes/galleryRoutes'));
+app.use('/api/gallery', galleryRoutes);
 app.use('/api/marketplace', require('./routes/marketplaceRoutes'));
 
 // Root check
