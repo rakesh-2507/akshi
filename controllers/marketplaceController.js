@@ -1,6 +1,6 @@
 // controllers/marketplaceController.js
-
 const pool = require('../utils/db');
+const path = require('path');
 
 exports.addItem = async (req, res) => {
   try {
@@ -24,7 +24,12 @@ exports.addItem = async (req, res) => {
       [userId, item_name, price, description, type, category, location, imagePath]
     );
 
-    res.status(201).json(result.rows[0]);
+    const newItem = result.rows[0];
+    newItem.image = newItem.image_path
+      ? `${process.env.BASE_URL}${newItem.image_path}`
+      : null;
+
+    res.status(201).json(newItem);
   } catch (err) {
     console.error('Add Item Error:', err);
     res.status(500).json({ error: 'Failed to add item' });
@@ -36,12 +41,13 @@ exports.getAllItems = async (req, res) => {
     const result = await pool.query(
       'SELECT * FROM marketplace_items ORDER BY created_at DESC'
     );
-    res.json(
-      result.rows.map(item => ({
-        ...item,
-        image: item.image_path ? `${process.env.BASE_URL}${item.image_path}` : null,
-      }))
-    );
+    const items = result.rows.map(item => ({
+      ...item,
+      image: item.image_path
+        ? `${process.env.BASE_URL}${item.image_path}`
+        : null,
+    }));
+    res.json(items);
   } catch (err) {
     console.error('Get Items Error:', err);
     res.status(500).json({ error: 'Failed to fetch items' });
