@@ -1,10 +1,14 @@
-// controllers/marketplaceController.js
 const pool = require('../utils/db');
 const path = require('path');
 
 exports.addItem = async (req, res) => {
   try {
+    console.log('Incoming addItem request');
     const userId = req.user?.id;
+    console.log('User ID:', userId);
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+
     const {
       item_name,
       price,
@@ -15,6 +19,7 @@ exports.addItem = async (req, res) => {
     } = req.body;
 
     const imagePath = req.file ? `/uploads/marketplace/${req.file.filename}` : null;
+    console.log('Image Path:', imagePath);
 
     const result = await pool.query(
       `INSERT INTO marketplace_items 
@@ -29,15 +34,17 @@ exports.addItem = async (req, res) => {
       ? `${process.env.BASE_URL}${newItem.image_path}`
       : null;
 
+    console.log('Item added successfully:', newItem);
     res.status(201).json(newItem);
   } catch (err) {
-    console.error('Add Item Error:', err);
+    console.error('Add Item Error:', err.message);
     res.status(500).json({ error: 'Failed to add item' });
   }
 };
 
 exports.getAllItems = async (req, res) => {
   try {
+    console.log('Fetching all marketplace items...');
     const result = await pool.query(
       'SELECT * FROM marketplace_items ORDER BY created_at DESC'
     );
@@ -47,9 +54,11 @@ exports.getAllItems = async (req, res) => {
         ? `${process.env.BASE_URL}${item.image_path}`
         : null,
     }));
+
+    console.log(`Fetched ${items.length} items`);
     res.json(items);
   } catch (err) {
-    console.error('Get Items Error:', err);
+    console.error('Get Items Error:', err.message);
     res.status(500).json({ error: 'Failed to fetch items' });
   }
 };
