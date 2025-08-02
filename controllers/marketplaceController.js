@@ -45,9 +45,14 @@ exports.addItem = async (req, res) => {
 exports.getAllItems = async (req, res) => {
   try {
     console.log('Fetching all marketplace items...');
-    const result = await pool.query(
-      'SELECT * FROM marketplace_items ORDER BY created_at DESC'
-    );
+
+    const result = await pool.query(`
+      SELECT mi.*, u.name AS user_name
+      FROM marketplace_items mi
+      JOIN users u ON mi.user_id = u.id
+      ORDER BY mi.created_at DESC
+    `);
+
     const items = result.rows.map(item => ({
       ...item,
       image: item.image_path
