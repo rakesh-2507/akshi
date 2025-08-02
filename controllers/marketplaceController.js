@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../utils/db');
 const path = require('path');
 
 const addItem = async (req, res) => {
