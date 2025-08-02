@@ -1,61 +1,61 @@
-const pool = require('../utils/db');
+const pool = require('../db');
 const path = require('path');
 
-exports.addItem = async (req, res) => {
+const addItem = async (req, res) => {
   try {
-    console.log('Incoming addItem request');
-    const userId = req.user?.id;
-    const {
-      item_name,
-      price,
-      description,
-      type,
-      category,
-      location,
-    } = req.body;
+    console.log('✅ Incoming marketplace add request');
 
-    if (!item_name || !price || !description || !type || !category || !req.file) {
-      return res.status(400).json({ message: 'Missing required fields or image' });
+    const { item_name, price, description, category, type } = req.body;
+    const { id: user_id } = req.user;
+
+    console.log('📝 Form Data:', { item_name, price, description, category, type });
+    console.log('👤 User ID:', user_id);
+
+    if (!req.file) {
+      console.error('❌ No image uploaded');
+      return res.status(400).json({ message: 'Image is required' });
     }
 
-    const imagePath = `/uploads/marketplace/${req.file.filename}`;
-    const result = await pool.query(
-      `INSERT INTO marketplace_items 
-       (user_id, item_name, price, description, type, category, location, image_path, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-       RETURNING *`,
-      [userId, item_name, price, description, type, category, location, imagePath]
-    );
+    const image_path = `uploads/marketplace/${req.file.filename}`;
+    console.log('🖼️ Image Uploaded:', req.file.filename);
 
-    const newItem = result.rows[0];
-    const baseUrl = process.env.BASE_URL || 'https://akshi-aid3.onrender.com';
-    newItem.image = `${baseUrl}${newItem.image_path}`;
+    const query = `
+      INSERT INTO marketplace_items
+      (user_id, item_name, price, description, image_path, category, type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    const values = [user_id, item_name, price, description, image_path, category, type];
 
-    res.status(201).json(newItem);
+    const result = await pool.query(query, values);
+
+    console.log('✅ Item added to DB:', result.rows[0]);
+
+    res.status(201).json({
+      message: 'Item added successfully',
+      item: {
+        ...result.rows[0],
+        image_path: `${req.protocol}://${req.get('host')}/${image_path}`,
+      },
+    });
   } catch (err) {
-    console.error('Add Item Error:', err);
-    res.status(500).json({ error: 'Failed to add item' });
+    console.error('❌ Error in addItem:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-exports.getAllItems = async (req, res) => {
+const getAllItems = async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT mi.*, u.name AS user_name
-      FROM marketplace_items mi
-      JOIN users u ON mi.user_id = u.id
-      ORDER BY mi.created_at DESC
-    `);
-
-    const baseUrl = process.env.BASE_URL || 'https://akshi-aid3.onrender.com';
-    const items = result.rows.map(item => ({
+    const result = await pool.query('SELECT * FROM marketplace_items ORDER BY id DESC');
+    const items = result.rows.map((item) => ({
       ...item,
-      image: item.image_path ? `${baseUrl}${item.image_path}` : null,
+      image_path: `${req.protocol}://${req.get('host')}/${item.image_path}`,
     }));
-
     res.json(items);
   } catch (err) {
-    console.error('Get Items Error:', err);
-    res.status(500).json({ error: 'Failed to fetch items' });
+    console.error('❌ Error in getAllItems:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
+
+module.exports = { addItem, getAllItems };
