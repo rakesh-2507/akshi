@@ -1,17 +1,18 @@
-// === BACKEND FILES ===
-
-// controllers/otpController.js
 const pool = require('../utils/db');
 const jwt = require('jsonwebtoken');
 const { generateOTP } = require('../utils/otpUtils');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const sendOTP = async (req, res) => {
   const { email, phone } = req.body;
+
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
   const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
   try {
     await pool.query(
@@ -34,16 +35,20 @@ const sendOTP = async (req, res) => {
       from: process.env.GMAIL_USER,
       to: email,
       subject: 'Your OTP Code',
-      text: `Your OTP is ${otp}`,
+      text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
     });
 
     if (phone) {
-      const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
-      await client.messages.create({
-        body: `Your OTP is ${otp}`,
-        from: process.env.TWILIO_PHONE,
-        to: `+91${phone}`,
-      });
+      try {
+        const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
+        await client.messages.create({
+          body: `Your OTP is ${otp}`,
+          from: process.env.TWILIO_PHONE,
+          to: `+91${phone}`,
+        });
+      } catch (smsErr) {
+        console.warn('⚠️ SMS send failed:', smsErr.message);
+      }
     }
 
     res.status(200).json({ message: 'OTP sent successfully' });
@@ -54,8 +59,25 @@ const sendOTP = async (req, res) => {
 };
 
 const verifyOTP = async (req, res) => {
-  const { otp, email, name, phone, apartmentName, floorNumber, flatNumber, password, role } = req.body;
-  console.log('✅ Received payload for OTP verification:', req.body);
+  const {
+    otp,
+    email,
+    name,
+    phone,
+    apartmentName,
+    floorNumber,
+    flatNumber,
+    password,
+    role,
+  } = req.body;
+
+  if (!otp || !email || !name || !password || !role) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  if (!['resident', 'owner', 'watchman'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
 
   try {
     const result = await pool.query(
@@ -70,20 +92,23 @@ const verifyOTP = async (req, res) => {
     await pool.query('UPDATE otps SET verified = true WHERE email = $1', [email]);
 
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-
     if (userCheck.rowCount > 0) {
-      return res.status(400).json({ error: 'User already registered' });
+      return res.status(400).json({ error: 'Invalid OTP or user already exists' });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const insertUser = await pool.query(
       `INSERT INTO users (name, email, phone, apartmentname, floor_number, flat_number, password, role)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, name, email, phone, apartmentname AS "apartmentName", floor_number AS "floorNumber", flat_number AS "flatNumber", role`,
-      [name, email, phone, apartmentName, floorNumber, flatNumber, password, role]
+      [name, email, phone, apartmentName, floorNumber, flatNumber, hashedPassword, role]
     );
 
     const user = insertUser.rows[0];
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
 
     res.status(200).json({ user, token });
   } catch (error) {

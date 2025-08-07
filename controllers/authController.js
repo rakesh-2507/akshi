@@ -1,11 +1,11 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const {
   createUser,
   findUserByEmail,
   updateUserById,
 } = require('../models/UserModel');
 
-// Register new user - Stores password in plaintext
 const register = async (req, res) => {
   try {
     const {
@@ -41,6 +41,8 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await createUser({
       name,
       email,
@@ -48,7 +50,7 @@ const register = async (req, res) => {
       apartmentName,
       floorNumber,
       flatNumber,
-      password,
+      password: hashedPassword,
       role,
     });
 
@@ -59,7 +61,6 @@ const register = async (req, res) => {
   }
 };
 
-// Login user
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -69,13 +70,14 @@ const login = async (req, res) => {
     }
 
     const user = await findUserByEmail(email);
-    if (!user || password !== user.password) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // ❌ If resident and not approved, block login
     if (user.role === 'resident' && !user.is_approved) {
-      return res.status(403).json({ message: 'Your account is pending approval by the admin.' });
+      return res.status(403).json({
+        message: 'Your account is pending approval by the admin.',
+      });
     }
 
     const token = jwt.sign(
@@ -107,7 +109,6 @@ const login = async (req, res) => {
   }
 };
 
-// Get current user from token
 const me = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -117,7 +118,6 @@ const me = async (req, res) => {
     const user = await findUserByEmail(decoded.email);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // ✅ Return isApproved for frontend logic
     res.json({
       id: user.id,
       name: user.name,
@@ -135,7 +135,6 @@ const me = async (req, res) => {
   }
 };
 
-// ✅ Update profile
 const updateProfile = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
